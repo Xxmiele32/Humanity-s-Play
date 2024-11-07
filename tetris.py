@@ -1,30 +1,41 @@
 """
-This module is the videogame Tetris
+El videojuego Tetris
 """
-import random
-import pygame
 # pylint: disable=invalid-name
 # pylint: disable=no-member
 # pylint: disable=redefined-outer-name
 # pylint: disable=consider-using-enumerate / C0200
+# pylint: disable=possibly-used-before-assignment
+# pylint: disable=bare-except
+# Importaciones
+import sys
+import random
+import pygame
+from button import Button
 pygame.init()
 pygame.font.init()
-# GLOBALS VARS
+# Variables Globales
 s_width = 800
 s_height = 700
-play_width = 300  # meaning 300 // 10 = 30 width per block
-play_height = 600  # meaning 600 // 20 = 20 height per block
+play_width = 300
+play_height = 600
 block_size = 30
 top_left_x = (s_width - play_width) // 2
 top_left_y = s_height - play_height
+size = (s_width, s_height)
+screen = pygame.display.set_mode(size)
+# Assets
+FondoMenu = pygame.image.load("assets/ZDR.png")
+FondoMenu = pygame.transform.scale(FondoMenu, (s_width, s_height))
+FondoJuego = pygame.image.load("assets/fondojuego.jpg")
+FondoJuego = pygame.transform.scale(FondoJuego, (s_width, s_height))
 gameover_sfx = pygame.mixer.Sound("assets/me-game-gameover-101soundboards.mp3")
 harddrop_sfx = pygame.mixer.Sound("assets/se-game-harddrop-101soundboards.mp3")
 landing_sfx = pygame.mixer.Sound("assets/se-game-landing-101soundboards.mp3")
 rotate_sfx = pygame.mixer.Sound("assets/se-game-rotate-101soundboards.mp3")
 claerrow_sfx = pygame.mixer.Sound("assets/se-game-single-101soundboards.mp3")
 Bonus_sfx = pygame.mixer.Sound("assets/se-game-tetris-101soundboards.mp3")
-music = pygame.mixer.music.load("assets/03. A-Type Music (Korobeiniki).mp3")
-# SHAPE FORMATS
+# las formas de las figuras
 S = [['.....',
       '......',
       '..00..',
@@ -134,7 +145,7 @@ shape_colors = [(0, 255, 0), (255, 0, 0), (0, 255, 255), (255, 255, 0), (255, 16
 
 class Piece(object):
     """
-    The most basic information about the figures
+    Esta clase se encarga de dar la informacion mas basica al objeto
     """
     def __init__(self, x, y, shape):
         self.x = x
@@ -145,9 +156,9 @@ class Piece(object):
 
 def create_grid(locked_pos={}):
     """
-    Creates the Grid also checks for lockeds positions
+    Crea la matriz a donde se jugara el tetris
     """
-    grid = [[(0,0,0) for _ in range(10)] for _ in range(20)]
+    grid = [[(0,0,0) for _ in range(10)] for _ in range(20)] # La matriz contara de 10 columnas y 20 filas
 
     for i in range(len(grid)):
         for j in range(len(grid[i])):
@@ -158,7 +169,7 @@ def create_grid(locked_pos={}):
 
 def convert_shape_format(shape):
     """
-    Converts the information of the position into the shapes
+    Convierte la infromacion de la posicion en las piezas
     """
     positions = []
     format = shape.shape[shape.rotation % len (shape.shape)]
@@ -175,7 +186,7 @@ def convert_shape_format(shape):
 
 def valid_space(shape, grid):
     """
-    Checks if the position the player wants is a valid position
+    Verifica si la posicion del jugador quiere es una posicion valida
     """
     accepted_pos = [[(j, i) for j in range(10) if grid[i][j] == (0,0,0)] for i in range(20)]
     accepted_pos = [j for sub in accepted_pos for j in sub]
@@ -189,7 +200,7 @@ def valid_space(shape, grid):
 
 def check_lost(positions):
     """
-    Checks if the player has lost the game
+    Verifica si el jugador ha perdido
     """
     for pos in positions:
         x, y = pos
@@ -199,29 +210,32 @@ def check_lost(positions):
 
 def get_shape():
     """
-    It just pick a random shape
+    Seleciona una pieza al azar
     """
     return Piece(5, 0, random.choice(shapes))
 
-def draw_text_middle(text, tamaño, color, surface):
-    font = pygame.font.SysFont('comicsans', tamaño, bold=True)
+def draw_text_middle(text, size, color, surface):
+    """
+    Esta funcion sera usada para mostrar al centro de la pantlla si el jugador ha perdido
+    """
+    font = pygame.font.SysFont('comicsans', size, bold=True)
     label = font.render(text, 1, color)
     surface.blit(label, (top_left_x + play_width/2 - (label.get_width() / 2), top_left_y + play_height/2 - label.get_height()/2))
 
 def draw_grid(surface, row, col):
     """
-    Draws the grid in the screen
+    Dibuja la matriz en la pantalla
     """
     sx = top_left_x
     sy = top_left_y
     for i in range(row):
-        pygame.draw.line(surface, (128,128,128), (sx, sy+ i*30), (sx + play_width, sy + i * 30))  # horizontal lines
+        pygame.draw.line(surface, (128,128,128), (sx, sy+ i*30), (sx + play_width, sy + i * 30))  # Lineas horizontales
         for j in range(col):
-            pygame.draw.line(surface, (128,128,128), (sx + j * 30, sy), (sx + j * 30, sy + play_height))  # vertical lines
+            pygame.draw.line(surface, (128,128,128), (sx + j * 30, sy), (sx + j * 30, sy + play_height))  # Lineas verticales
 
 def clear_rows(grid, locked):
     """
-    Clears the rows once they are full
+    Limpia la linea si esta llena
     """
     inc = 0
     for i in range(len(grid)-1,-1,-1):
@@ -245,7 +259,7 @@ def clear_rows(grid, locked):
 
 def draw_next_shape(shape, surface):
     """
-    Draws what will be the next shape in the screen
+    Dibuja cual sera la siguiente figura
     """
     font = pygame.font.SysFont('comicsans', 30)
     label = font.render('Next Shape', 1, (255,255,255))
@@ -264,17 +278,16 @@ def draw_next_shape(shape, surface):
 
 def draw_window(surface, grid, score=0, last_score = 0):
     """
-    Creates the windows with the title, score and the high score
+    Crea la ventana con el titulo, el puntuaje y el maximo puntuaje
     """
-    surface.fill((0, 0, 0))
-
+    surface.blit(FondoJuego, (0,0))
     pygame.font.init()
     font = pygame.font.SysFont('comicsans', 60)
     label = font.render('Tetris', 1, (255,255,255))
 
     surface.blit(label, (top_left_x + play_width/2 - (label.get_width() / 2), 10))
 
-    #current score
+    #Score Actual
     font = pygame.font.SysFont('comicsans', 30)
     label = font.render('Score: ' + str(score), 1, (255,255,255))
 
@@ -283,7 +296,7 @@ def draw_window(surface, grid, score=0, last_score = 0):
 
     surface.blit(label, (sx + 20, sy + 150))
 
-    #last score
+    #Ultimo mejor score
     label = font.render('High Score: ' + str(last_score), 1, (255,255,255))
 
     sx = top_left_x - 250
@@ -299,7 +312,7 @@ def draw_window(surface, grid, score=0, last_score = 0):
 
 def update_score(nscore):
     """
-    Writes the highest score in the .txt
+    Escribe el ultimo mejor puntuaje en el fichero .txt
     """
     score = max_score()
 
@@ -311,7 +324,7 @@ def update_score(nscore):
 
 def max_score():
     """
-    Read what is the highest score
+    Lee cual es el mejor ultimo puntuaje del fichero ,txt
     """
     with open('scores.txt', 'r', encoding="utf-8") as f:
         lines = f.readlines()
@@ -320,7 +333,7 @@ def max_score():
 
 def collision_check(piece, grid):
     """
-    Checks if the current piece collides with the grid or locked pieces
+    Verifica si la pieza actual esta colisionando con la matriz o las piezas ya colocadas
     """
     shape_format = convert_shape_format(piece)
     for x, y in shape_format:
@@ -331,15 +344,22 @@ def collision_check(piece, grid):
     return False
 
 def hard_drop(current_piece, grid):
+    "Esta funcion permite que se pueda hacer que la pieza caiga hasta el fondo"
     while not collision_check(current_piece, grid):
         current_piece.y += 1
     current_piece.y -= 1
 
+def get_font(size):
+    """
+    Desde la carpeta de assets se coge la fuente y la devuelve al remitente.
+    """
+    return pygame.font.Font("assets/font.ttf", size)
 
 def main(win):
     """
-    Game loop
+    El loop principal del juego
     """
+    # Creacion de variables
     last_score = max_score()
     locked_positions = {}
     grid = create_grid(locked_positions)
@@ -352,6 +372,7 @@ def main(win):
     fall_speed = 0.27
     level_time = 0
     score = 0
+    pygame.mixer.music.load("assets/musicajuego.mp3")
     pygame.mixer.music.play(-1)
 
 
@@ -378,6 +399,7 @@ def main(win):
             if event.type == pygame.QUIT:
                 pygame.mixer.music.stop()
                 run = False
+                main_menu()
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
@@ -410,7 +432,6 @@ def main(win):
             for pos in shape_pos:
                 p = (pos[0], pos[1])
                 locked_positions[p] = current_piece.color
-                {(1,2):(255,0,0)}
             current_piece = next_piece
             next_piece = get_shape()
             change_piece = False
@@ -436,20 +457,80 @@ def main(win):
             pygame.display.update()
             pygame.time.delay(7000)
 
+def howplay(win):
+    """
+    Menu sobre como jugar
+    """
+    # Cargar imagen de fondo para la ventana "howplay"
+    FondoJuego = pygame.image.load("assets/fondojuego.jpg")
+    FondoJuego = pygame.transform.scale(FondoJuego, (s_width, s_height))
+    
+    # Crear un bucle de eventos para mostrar la ventana
+    while True:
+        screen.blit(FondoJuego, (0, 0))  # Dibujar la imagen de fondo en la ventana
+        MENU_MOUSE_POS = pygame.mouse.get_pos()
+        MENU_BUTTON = Button(image=pygame.image.load("assets/Menubutton.png"), pos=(400, 600),
+                            text_input="GO HOME", font=get_font(50), base_color="#d7fcd4", hovering_color="White")
+        for button in [MENU_BUTTON]:
+            button.changeColor(MENU_MOUSE_POS)
+            button.update(screen)
 
-def main_menu():
-    run = True
-    while run:
-        win.fill((0,0,0))
-        draw_text_middle('Press any key to begin.', 60, (255, 255, 255), win)
-        pygame.display.update()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                run = False
+                main_menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if MENU_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    main_menu()
+        
+        pygame.display.update()
+    # Cerrar la ventana cuando se termine el bucle
 
-            if event.type == pygame.KEYDOWN:
-                main(win)
-    pygame.quit()
+def main_menu():
+    """
+    Esta la estetica del menu y sus botones.
+    """
+    pygame.mixer.music.load("assets/musicamenu.mp3")
+    pygame.mixer.music.play(-1)
+    while True:
+        screen.blit(FondoMenu, (0, 0))
+
+
+
+        MENU_MOUSE_POS = pygame.mouse.get_pos()
+
+        MENU_TEXT = get_font(50).render("Humanity's Play", True, "#4631c9")
+        MENU_RECT = MENU_TEXT.get_rect(center=(400, 50))
+
+        PLAY_BUTTON = Button(image=pygame.image.load("assets/Play Rect.png"), pos=(400, 300),
+                            text_input="PLAY", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
+        QUIT_BUTTON = Button(image=pygame.image.load("assets/Quit Rect.png"), pos=(400, 450),
+                            text_input="QUIT", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
+        HOWPLAY_BUTTON = Button(image=pygame.image.load("assets/How Play.png"), pos=(400, 600),
+                            text_input="HOW TO PLAY", font=get_font(30), base_color="#d7fcd4", hovering_color="White")
+
+        screen.blit(MENU_TEXT, MENU_RECT)
+
+        for button in [PLAY_BUTTON, QUIT_BUTTON, HOWPLAY_BUTTON]:
+            button.changeColor(MENU_MOUSE_POS)
+            button.update(screen)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.mixer.music.stop()
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    pygame.mixer.music.stop()
+                    main(win)
+                if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    pygame.mixer.music.stop()
+                    pygame.quit()
+                    sys.exit()
+                if HOWPLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    howplay(win)
+
+        pygame.display.update()
 
 
 win = pygame.display.set_mode((s_width, s_height))
