@@ -457,7 +457,7 @@ def main(win):
             pygame.display.update()
             pygame.time.delay(7000)
 
-def howplay(win):
+def howplay():
     """
     Menu sobre como jugar
     """
