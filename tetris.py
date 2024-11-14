@@ -355,6 +355,48 @@ def get_font(size):
     """
     return pygame.font.Font("assets/font.ttf", size)
 
+def hold_piece(held_piece, current_piece, next_piece, can_hold):
+    # Todo:
+    # Las piezas despues de guardarlas se colocan donde les da la regalada gana
+    # Si vas muy rapido las piezas se fusionan
+    """
+    Esta funcion se encarga de guardar la figura
+    """
+    if not can_hold:
+        return held_piece, current_piece, next_piece, can_hold
+
+    if held_piece is None:
+        held_piece = current_piece
+        current_piece = next_piece
+        next_piece = get_shape()
+    else:
+        current_piece, held_piece = held_piece, current_piece
+
+    current_piece.x, current_piece.y = 5, 0
+
+    can_hold = False
+    return held_piece, current_piece, next_piece, can_hold
+
+def draw_held_piece(held_piece, surface):
+    """
+    Dibuja la pieza en la reserva en la interfaz del juego.
+    """
+    font = pygame.font.SysFont('comicsans', 30)
+    label = font.render('Held Piece', 1, (255,255,255))
+
+    sx = top_left_x - 150  # Ubicación de la pieza en la pantalla
+    sy = top_left_y + play_height / 2 - 100
+
+    surface.blit(label, (sx + 10, sy - 50))
+
+    if held_piece is not None:
+        format = held_piece.shape[held_piece.rotation % len(held_piece.shape)]
+        for i, line in enumerate(format):
+            row = list(line)
+            for j, column in enumerate(row):
+                if column == '0':
+                    pygame.draw.rect(surface, held_piece.color, (sx + j * 30, sy + i * block_size, block_size, block_size), 0)
+
 def main(win):
     """
     El loop principal del juego
@@ -372,6 +414,8 @@ def main(win):
     fall_speed = 0.27
     level_time = 0
     score = 0
+    held_piece = None
+    can_hold = True
     pygame.mixer.music.load("assets/musicajuego.mp3")
     pygame.mixer.music.play(-1)
 
@@ -420,8 +464,12 @@ def main(win):
                     if not (valid_space(current_piece, grid)):
                         current_piece.rotation -= 1
                 if event.key == pygame.K_SPACE:
+                    can_hold = False
                     hard_drop(current_piece, grid)
                     harddrop_sfx.play()
+                if event.key == pygame.K_r:
+                    if can_hold is True:
+                        held_piece, current_piece, next_piece, can_hold = hold_piece(held_piece, current_piece, next_piece, can_hold)
 
         shape_pos = convert_shape_format(current_piece)
         for i in range(len(shape_pos)):
@@ -434,6 +482,7 @@ def main(win):
                 locked_positions[p] = current_piece.color
             current_piece = next_piece
             next_piece = get_shape()
+            can_hold = True
             change_piece = False
             landing_sfx.play()
             if clear_rows(grid, locked_positions) == 4:
@@ -446,6 +495,7 @@ def main(win):
 
         draw_window(win, grid, score, last_score)
         draw_next_shape(next_piece, win)
+        draw_held_piece(held_piece, win)
         pygame.display.update()
 
         if check_lost(locked_positions):
