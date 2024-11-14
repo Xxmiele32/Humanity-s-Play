@@ -37,6 +37,7 @@ landing_sfx = pygame.mixer.Sound("assets/se-game-landing-101soundboards.mp3")
 rotate_sfx = pygame.mixer.Sound("assets/se-game-rotate-101soundboards.mp3")
 claerrow_sfx = pygame.mixer.Sound("assets/se-game-single-101soundboards.mp3")
 Bonus_sfx = pygame.mixer.Sound("assets/se-game-tetris-101soundboards.mp3")
+Bonus_music = pygame.mixer.Sound("assets/bonus.mp3")
 # las formas de las figuras
 S = [['.....',
       '......',
@@ -402,32 +403,39 @@ def draw_held_piece(held_piece, surface):
 def update_energy_bar(screen, energy_level):
     """Actualiza la barra de energía en función del nivel."""
     image_index = min(energy_level // 2, 3)
-    screen.blit(energy_bar_images[image_index], (100, 20))
+    screen.blit(energy_bar_images[image_index], (1,1))
 
 def activate_bonus():
     """Activa el bono con doble puntaje."""
+    print("Bonus activado")
     double_points = True
     bonus_active = True
     bonus_end_time = time.time() + 10  # Duración de 10 segundos
-    Bonus_sfx.play()
+    draw_text_middle("BONUS TIME!", 40, (255, 255, 255), win)
+    pygame.mixer.music.stop()
+    Bonus_music.play()
     return double_points, bonus_active, bonus_end_time
 
 def handle_bonus(bonus_active, bonus_end_time):
     """Controla el tiempo de duración del bono."""
     if bonus_active and time.time() >= bonus_end_time:
-        Bonus_sfx.stop()
+        print("Se ha acabado el bonus")
+        Bonus_music.stop()
+        pygame.mixer.music.play(-1)
         return False, None  # Desactiva el bono
     return True, bonus_end_time
 
-def main(win):
+# Example of diagnostic prints to investigate rows_cleared and energy_level issues
+
+def debug_main(win):
     """
-    El loop principal del juego
+    Main game loop with added debug statements to investigate energy_level updates.
     """
-    # Creacion de variables
+    # Initialization
     last_score = max_score()
     locked_positions = {}
     grid = create_grid(locked_positions)
-    rows_cleared = clear_rows(grid, locked_positions)
+    rows_cleared = 0
     change_piece = False
     run = True
     current_piece = get_shape()
@@ -446,7 +454,6 @@ def main(win):
     pygame.mixer.music.load("assets/musicajuego.mp3")
     pygame.mixer.music.play(-1)
 
-
     while run:
         grid = create_grid(locked_positions)
         pygame.display.update()
@@ -454,100 +461,111 @@ def main(win):
         level_time += clock.get_rawtime()
         clock.tick()
 
-        if level_time/1000 >5:
-            level_time = 0
-            if fall_speed > 0.12:
-                fall_speed -= 0.005
-
-        if fall_time/1000 > fall_speed:
+        # Piece falls over time
+        if fall_time / 1000 > fall_speed:
             fall_time = 0
             current_piece.y += 1
             if not (valid_space(current_piece, grid) and current_piece.y > 0):
                 current_piece.y -= 1
                 change_piece = True
-                
+
+        # Handle Events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.mixer.music.stop()
                 run = False
                 main_menu()
 
+            # Key Controls
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
                     current_piece.x -= 1
-                    if not(valid_space(current_piece, grid)):
+                    if not valid_space(current_piece, grid):
                         current_piece.x += 1
-                if event.key == pygame.K_RIGHT:
+                elif event.key == pygame.K_RIGHT:
                     current_piece.x += 1
-                    if not (valid_space(current_piece, grid)):
+                    if not valid_space(current_piece, grid):
                         current_piece.x -= 1
-                if event.key == pygame.K_DOWN:
+                elif event.key == pygame.K_DOWN:
                     current_piece.y += 1
-                    if not (valid_space(current_piece, grid)):
+                    if not valid_space(current_piece, grid):
                         current_piece.y -= 1
-                if event.key == pygame.K_UP:
+                elif event.key == pygame.K_UP:
                     current_piece.rotation += 1
                     rotate_sfx.play()
-                    if not (valid_space(current_piece, grid)):
+                    if not valid_space(current_piece, grid):
                         current_piece.rotation -= 1
-                if event.key == pygame.K_SPACE:
+                elif event.key == pygame.K_SPACE:
                     can_hold = False
                     hard_drop(current_piece, grid)
                     harddrop_sfx.play()
-                if event.key == pygame.K_r:
-                    if can_hold is True:
-                        held_piece, current_piece, next_piece, can_hold = hold_piece(held_piece, current_piece, next_piece, can_hold)
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_g and energy_level >= 2 and not bonus_active:
-                        double_points, bonus_active, bonus_end_time = activate_bonus()
-                        energy_level = 0  # Reiniciar la barra de energía
+                elif event.key == pygame.K_r:
+                    if can_hold:
+                        held_piece, current_piece, next_piece, can_hold = hold_piece(
+                            held_piece, current_piece, next_piece, can_hold
+                        )
+                elif event.key == pygame.K_g and energy_level >= 1 and not bonus_active:
+                    double_points, bonus_active, bonus_end_time = activate_bonus()
+                    energy_level = 0  # Reset energy bar
 
+        # Place the current piece on the grid
         shape_pos = convert_shape_format(current_piece)
-        for i in range(len(shape_pos)):
-            x, y = shape_pos[i]
+        for x, y in shape_pos:
             if y > -1:
                 grid[y][x] = current_piece.color
         if change_piece:
             for pos in shape_pos:
-                p = (pos[0], pos[1])
-                locked_positions[p] = current_piece.color
+                locked_positions[(pos[0], pos[1])] = current_piece.color
             current_piece = next_piece
             next_piece = get_shape()
             can_hold = True
             change_piece = False
             landing_sfx.play()
-        rows_cleared = clear_rows(grid, locked_positions)
-        if rows_cleared > 0:
-            points_to_add = rows_cleared * (100 if rows_cleared == 4 else 10)
-            if double_points:
-                points_to_add *= 2
-            score += points_to_add
-            (Bonus_sfx if rows_cleared == 4 else claerrow_sfx).play()
-        
+
+            # Clear rows after placing the piece
+            rows_cleared = clear_rows(grid, locked_positions)
+            print(f"Debug: Rows cleared = {rows_cleared}")  # Debug print to check rows cleared
+            
+            if rows_cleared > 0:
+                points_to_add = rows_cleared * (100 if rows_cleared == 4 else 10)
+                if double_points:
+                    points_to_add *= 2
+                score += points_to_add
+                (Bonus_sfx if rows_cleared == 4 else claerrow_sfx).play()
+                
+                # Update energy level and print to verify increment
+                prev_energy = energy_level  # Track previous energy level for comparison
+                energy_level = min(energy_level + max(1, rows_cleared // 2), 7)
+                print(f"Debug: Previous energy level = {prev_energy}, New energy level = {energy_level}")  # Debug print
+
+        # Draw the window and update display
         draw_window(win, grid, score, last_score)
-        energy_level = min(energy_level + rows_cleared // 2, 7)
         update_energy_bar(win, energy_level)
         draw_next_shape(next_piece, win)
         draw_held_piece(held_piece, win)
         pygame.display.update()
 
+        # Handle bonus duration
         if bonus_active:
             bonus_active, bonus_end_time = handle_bonus(bonus_active, bonus_end_time)
             if not bonus_active:
-                double_points = False  # Desactivar doble puntuación al finalizar el bono
+                double_points = False  # Deactivate double points when bonus ends
 
-
+        # Check for game over
         if check_lost(locked_positions):
             run = False
-            draw_text_middle("YOU LOST!", 40, (255,255,255), win)
+            draw_text_middle("YOU LOST!", 40, (255, 255, 255), win)
             pygame.mixer.music.stop()
             gameover_sfx.play()
             update_score(score)
             pygame.display.update()
             pygame.time.delay(7000)
-    
+
     pygame.display.flip()
     pygame.time.delay(100)
+
+# Note: This code adds debug print statements for rows_cleared and energy_level values.
+# It is not executable in this environment, but can be run in a local Pygame environment for testing.
 
 
 def howplay():
@@ -615,7 +633,7 @@ def main_menu():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.mixer.music.stop()
-                    main(win)
+                    debug_main(win)
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.mixer.music.stop()
                     pygame.quit()
