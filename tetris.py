@@ -10,6 +10,7 @@ El videojuego Tetris
 # Importaciones
 import sys
 import random
+import time
 import pygame
 from button import Button
 pygame.init()
@@ -29,6 +30,7 @@ FondoMenu = pygame.image.load("assets/ZDR.png")
 FondoMenu = pygame.transform.scale(FondoMenu, (s_width, s_height))
 FondoJuego = pygame.image.load("assets/fondojuego.jpg")
 FondoJuego = pygame.transform.scale(FondoJuego, (s_width, s_height))
+energy_bar_images = [pygame.image.load(f"assets/barra_energia_{i}.png") for i in range(4)]
 gameover_sfx = pygame.mixer.Sound("assets/me-game-gameover-101soundboards.mp3")
 harddrop_sfx = pygame.mixer.Sound("assets/se-game-harddrop-101soundboards.mp3")
 landing_sfx = pygame.mixer.Sound("assets/se-game-landing-101soundboards.mp3")
@@ -397,6 +399,26 @@ def draw_held_piece(held_piece, surface):
                 if column == '0':
                     pygame.draw.rect(surface, held_piece.color, (sx + j * 30, sy + i * block_size, block_size, block_size), 0)
 
+def update_energy_bar(screen, energy_level):
+    """Actualiza la barra de energía en función del nivel."""
+    image_index = min(energy_level // 2, 3)
+    screen.blit(energy_bar_images[image_index], (100, 20))
+
+def activate_bonus():
+    """Activa el bono con doble puntaje."""
+    double_points = True
+    bonus_active = True
+    bonus_end_time = time.time() + 10  # Duración de 10 segundos
+    Bonus_sfx.play()
+    return double_points, bonus_active, bonus_end_time
+
+def handle_bonus(bonus_active, bonus_end_time):
+    """Controla el tiempo de duración del bono."""
+    if bonus_active and time.time() >= bonus_end_time:
+        Bonus_sfx.stop()
+        return False, None  # Desactiva el bono
+    return True, bonus_end_time
+
 def main(win):
     """
     El loop principal del juego
@@ -405,6 +427,7 @@ def main(win):
     last_score = max_score()
     locked_positions = {}
     grid = create_grid(locked_positions)
+    rows_cleared = clear_rows(grid, locked_positions)
     change_piece = False
     run = True
     current_piece = get_shape()
@@ -414,6 +437,10 @@ def main(win):
     fall_speed = 0.27
     level_time = 0
     score = 0
+    energy_level = 0
+    double_points = False
+    bonus_active = False
+    bonus_end_time = None
     held_piece = None
     can_hold = True
     pygame.mixer.music.load("assets/musicajuego.mp3")
@@ -470,6 +497,10 @@ def main(win):
                 if event.key == pygame.K_r:
                     if can_hold is True:
                         held_piece, current_piece, next_piece, can_hold = hold_piece(held_piece, current_piece, next_piece, can_hold)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_g and energy_level >= 2 and not bonus_active:
+                        double_points, bonus_active, bonus_end_time = activate_bonus()
+                        energy_level = 0  # Reiniciar la barra de energía
 
         shape_pos = convert_shape_format(current_piece)
         for i in range(len(shape_pos)):
@@ -485,18 +516,26 @@ def main(win):
             can_hold = True
             change_piece = False
             landing_sfx.play()
-            if clear_rows(grid, locked_positions) == 4:
-                score += clear_rows(grid, locked_positions) * 100
-                Bonus_sfx.play()
-
-            else:
-                score += clear_rows(grid, locked_positions) * 10
-                claerrow_sfx.play()
-
+        rows_cleared = clear_rows(grid, locked_positions)
+        if rows_cleared > 0:
+            points_to_add = rows_cleared * (100 if rows_cleared == 4 else 10)
+            if double_points:
+                points_to_add *= 2
+            score += points_to_add
+            (Bonus_sfx if rows_cleared == 4 else claerrow_sfx).play()
+        
         draw_window(win, grid, score, last_score)
+        energy_level = min(energy_level + rows_cleared // 2, 7)
+        update_energy_bar(win, energy_level)
         draw_next_shape(next_piece, win)
         draw_held_piece(held_piece, win)
         pygame.display.update()
+
+        if bonus_active:
+            bonus_active, bonus_end_time = handle_bonus(bonus_active, bonus_end_time)
+            if not bonus_active:
+                double_points = False  # Desactivar doble puntuación al finalizar el bono
+
 
         if check_lost(locked_positions):
             run = False
@@ -506,6 +545,10 @@ def main(win):
             update_score(score)
             pygame.display.update()
             pygame.time.delay(7000)
+    
+    pygame.display.flip()
+    pygame.time.delay(100)
+
 
 def howplay():
     """
@@ -578,7 +621,7 @@ def main_menu():
                     pygame.quit()
                     sys.exit()
                 if HOWPLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
-                    howplay(win)
+                    howplay()
 
         pygame.display.update()
 
