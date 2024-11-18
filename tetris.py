@@ -7,10 +7,13 @@ El videojuego Tetris
 # pylint: disable=consider-using-enumerate / C0200
 # pylint: disable=possibly-used-before-assignment
 # pylint: disable=bare-except
+# pylint: disable=line-too-long
 # Importaciones
 import sys
 import random
 import time
+import os
+import json
 import pygame
 from button import Button
 pygame.init()
@@ -21,6 +24,7 @@ s_height = 700
 play_width = 300
 play_height = 600
 block_size = 30
+player_points = 0
 top_left_x = (s_width - play_width) // 2
 top_left_y = s_height - play_height
 size = (s_width, s_height)
@@ -30,7 +34,10 @@ FondoMenu = pygame.image.load("assets/ZDR.png")
 FondoMenu = pygame.transform.scale(FondoMenu, (s_width, s_height))
 FondoJuego = pygame.image.load("assets/fondojuego.jpg")
 FondoJuego = pygame.transform.scale(FondoJuego, (s_width, s_height))
-energy_bar_images = [pygame.image.load(f"assets/barra_energia_{i}.png") for i in range(4)]
+Escenario1 = pygame.image.load("assets/fondoacuatico.jpg")
+Escenario2 = pygame.image.load("assets/fondodesertico.jpg")
+Escenario3 = pygame.image.load("assets/fondourbano.jpg")
+energy_bar_images = [pygame.transform.scale(pygame.image.load(f"assets/barra_energia_{i}.png"),(s_width -300, s_height))for i in range(4)]
 gameover_sfx = pygame.mixer.Sound("assets/me-game-gameover-101soundboards.mp3")
 harddrop_sfx = pygame.mixer.Sound("assets/se-game-harddrop-101soundboards.mp3")
 landing_sfx = pygame.mixer.Sound("assets/se-game-landing-101soundboards.mp3")
@@ -141,10 +148,8 @@ T = [['.....',
       '..0..',
       '.....']]
 
-
 shapes = [S, Z, I, O, J, L, T]
 shape_colors = [(0, 255, 0), (255, 0, 0), (0, 255, 255), (255, 255, 0), (255, 165, 0), (0, 0, 255), (128, 0, 128)]
-# index 0 - 6 represent shape
 
 class Piece(object):
     """
@@ -161,8 +166,8 @@ def create_grid(locked_pos={}):
     """
     Crea la matriz a donde se jugara el tetris
     """
-    grid = [[(0,0,0) for _ in range(10)] for _ in range(20)] # La matriz contara de 10 columnas y 20 filas
-
+    # Todas las celdas que esten vacias seran de color negro pero las celdas bloqueadas seran del color correspondiente a su figura
+    grid = [[(0,0,0) for _ in range(10)] for _ in range(20)]
     for i in range(len(grid)):
         for j in range(len(grid[i])):
             if (j, i) in locked_pos:
@@ -211,15 +216,37 @@ def check_lost(positions):
             return True
     return False
 
-def get_shape():
+
+def get_shape(probabilities):
     """
-    Seleciona una pieza al azar
+    Genera una nueva pieza basada en probabilidades ajustadas.
+    :param probabilities: Diccionario con las probabilidades ajustadas de cada pieza.
+    :return: Una pieza seleccionada aleatoriamente (la estructura específica del juego).
     """
-    return Piece(5, 0, random.choice(shapes))
+    pieces = []
+
+    # Construir una lista ponderada según las probabilidades ajustadas
+    for piece, prob in probabilities.items():
+        pieces.extend([piece] * int(prob * 100))  # Escalamos las probabilidades a un rango manejable
+
+    # Elegir una pieza aleatoria de la lista ponderada
+    selected_piece = random.choice(pieces)
+
+    # Crear y devolver la estructura de la pieza según tu lógica actual
+    if selected_piece == "T":
+        return Piece(5, 0, T)
+    elif selected_piece == "L":
+        return Piece(5, 0, L)
+    elif selected_piece == "I":
+        return Piece(5, 0, I)
+    elif selected_piece == "J":
+        return Piece(5, 0, J)
+    # Agrega otras formas según sea necesario
+
 
 def draw_text_middle(text, size, color, surface):
     """
-    Esta funcion sera usada para mostrar al centro de la pantlla si el jugador ha perdido
+    Esta funcion sera usada para mostrar texto al centro de la pantalla
     """
     font = pygame.font.SysFont('comicsans', size, bold=True)
     label = font.render(text, 1, color)
@@ -359,9 +386,6 @@ def get_font(size):
     return pygame.font.Font("assets/font.ttf", size)
 
 def hold_piece(held_piece, current_piece, next_piece, can_hold):
-    # Todo:
-    # Las piezas despues de guardarlas se colocan donde les da la regalada gana
-    # Si vas muy rapido las piezas se fusionan
     """
     Esta funcion se encarga de guardar la figura
     """
@@ -371,7 +395,7 @@ def hold_piece(held_piece, current_piece, next_piece, can_hold):
     if held_piece is None:
         held_piece = current_piece
         current_piece = next_piece
-        next_piece = get_shape()
+        next_piece = get_shape(adjusted_piece_probabilities)
     else:
         current_piece, held_piece = held_piece, current_piece
 
@@ -403,7 +427,7 @@ def draw_held_piece(held_piece, surface):
 def update_energy_bar(screen, energy_level):
     """Actualiza la barra de energía en función del nivel."""
     image_index = min(energy_level // 2, 3)
-    screen.blit(energy_bar_images[image_index], (1,1))
+    screen.blit(energy_bar_images[image_index], (-130,300))
 
 def activate_bonus():
     """Activa el bono con doble puntaje."""
@@ -411,7 +435,6 @@ def activate_bonus():
     double_points = True
     bonus_active = True
     bonus_end_time = time.time() + 10  # Duración de 10 segundos
-    draw_text_middle("BONUS TIME!", 40, (255, 255, 255), win)
     pygame.mixer.music.stop()
     Bonus_music.play()
     return double_points, bonus_active, bonus_end_time
@@ -438,9 +461,10 @@ def debug_main(win):
     rows_cleared = 0
     change_piece = False
     run = True
-    current_piece = get_shape()
-    next_piece = get_shape()
+    current_piece = get_shape(adjusted_piece_probabilities)
+    next_piece = get_shape(adjusted_piece_probabilities)
     clock = pygame.time.Clock()
+    player_points = 0
     fall_time = 0
     fall_speed = 0.27
     level_time = 0
@@ -474,7 +498,7 @@ def debug_main(win):
             if event.type == pygame.QUIT:
                 pygame.mixer.music.stop()
                 run = False
-                main_menu()
+                main_menu(player_points, shop_data, unlock_scenario)
 
             # Key Controls
             if event.type == pygame.KEYDOWN:
@@ -504,7 +528,7 @@ def debug_main(win):
                         held_piece, current_piece, next_piece, can_hold = hold_piece(
                             held_piece, current_piece, next_piece, can_hold
                         )
-                elif event.key == pygame.K_g and energy_level >= 1 and not bonus_active:
+                elif event.key == pygame.K_g and energy_level >= 4 and not bonus_active:
                     double_points, bonus_active, bonus_end_time = activate_bonus()
                     energy_level = 0  # Reset energy bar
 
@@ -517,7 +541,7 @@ def debug_main(win):
             for pos in shape_pos:
                 locked_positions[(pos[0], pos[1])] = current_piece.color
             current_piece = next_piece
-            next_piece = get_shape()
+            next_piece = get_shape(adjusted_piece_probabilities)
             can_hold = True
             change_piece = False
             landing_sfx.play()
@@ -531,11 +555,13 @@ def debug_main(win):
                 if double_points:
                     points_to_add *= 2
                 score += points_to_add
+                player_points += points_to_add
+                save_game(player_points, shop_data, unlock_scenario)
                 (Bonus_sfx if rows_cleared == 4 else claerrow_sfx).play()
                 
                 # Update energy level and print to verify increment
                 prev_energy = energy_level  # Track previous energy level for comparison
-                energy_level = min(energy_level + max(1, rows_cleared // 2), 7)
+                energy_level = min(energy_level + max(1, rows_cleared // 2), 6)
                 print(f"Debug: Previous energy level = {prev_energy}, New energy level = {energy_level}")  # Debug print
 
         # Draw the window and update display
@@ -548,12 +574,15 @@ def debug_main(win):
         # Handle bonus duration
         if bonus_active:
             bonus_active, bonus_end_time = handle_bonus(bonus_active, bonus_end_time)
+            draw_text_middle("BONUS TIME!", 40, (255, 255, 255), win)
             if not bonus_active:
                 double_points = False  # Deactivate double points when bonus ends
 
         # Check for game over
         if check_lost(locked_positions):
             run = False
+            player_points += score
+            save_game(player_points, shop_data, unlocked_scenarios)
             draw_text_middle("YOU LOST!", 40, (255, 255, 255), win)
             pygame.mixer.music.stop()
             gameover_sfx.play()
@@ -588,45 +617,248 @@ def howplay():
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                main_menu()
+                main_menu(player_points, shop_data, unlock_scenario)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if MENU_BUTTON.checkForInput(MENU_MOUSE_POS):
-                    main_menu()
+                    main_menu(player_points, shop_data, unlock_scenario)
         
         pygame.display.update()
     # Cerrar la ventana cuando se termine el bucle
 
-def main_menu():
+def shop_menu(player_points, shop_data, unlocked_scenarios):
+    """
+    Implementa la lógica de la tienda con botones dinámicos y conexión a la mejora de piezas.
+    """
+    custom_background = pygame.image.load("assets/custom_background.jpg")
+    custom_background = pygame.transform.scale(custom_background, (s_width, s_height))
+    shop_background = pygame.image.load("assets/shop_background.png")
+    shop_background = pygame.transform.scale(shop_background, (s_width, s_height))
+    Margen = pygame.image.load("assets/button.png")
+    Margen = pygame.transform.scale(Margen, (s_width - 705, s_height - 645))
+
+    while True:
+        screen.blit(custom_background, (0, 0))
+        screen.blit(shop_background, (0, 0))
+
+        SHOP_MOUSE_POS = pygame.mouse.get_pos()
+
+        # Texto para puntos acumulados
+        POINTS_TEXT = get_font(20).render(f"PUNTOS: {player_points}", True, "#ffffff")
+        POINTS_RECT = POINTS_TEXT.get_rect(center=(400, 50))
+        screen.blit(POINTS_TEXT, POINTS_RECT)
+
+        # Botones de las piezas
+        FIGURA_T_BUTTON = Button(image=Margen, pos=(307, 580),
+                                 text_input="FIGURA T", font=get_font(10), base_color="White", hovering_color="Green")
+        FIGURA_L_BUTTON = Button(image=Margen, pos=(408, 580),
+                                 text_input="FIGURA L", font=get_font(10), base_color="White", hovering_color="Green")
+        FIGURA_I_BUTTON = Button(image=Margen, pos=(509, 580),
+                                 text_input="FIGURA I", font=get_font(10), base_color="White", hovering_color="Green")
+        FIGURA_J_BUTTON = Button(image=Margen, pos=(205, 580),
+                                 text_input="FIGURA J", font=get_font(10), base_color="White", hovering_color="Green")
+
+        BACK_BUTTON = Button(image=Margen, pos=(400, 100),
+                             text_input="VOLVER", font=get_font(10), base_color="White", hovering_color="Red")
+
+        # Dibuja los botones
+        for button in [FIGURA_T_BUTTON, FIGURA_L_BUTTON, FIGURA_I_BUTTON, FIGURA_J_BUTTON, BACK_BUTTON]:
+            button.changeColor(SHOP_MOUSE_POS)
+            button.update(screen)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                # Maneja las mejoras de probabilidades
+                if FIGURA_T_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    player_points = update_shop("T", player_points)
+                    save_game(player_points, shop_data, unlocked_scenarios)
+                if FIGURA_L_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    player_points = update_shop("L", player_points)
+                    save_game(player_points, shop_data, unlocked_scenarios)
+                if FIGURA_I_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    player_points = update_shop("I", player_points)
+                    save_game(player_points, shop_data, unlocked_scenarios)
+                if FIGURA_J_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    player_points = update_shop("J", player_points)
+                    save_game(player_points, shop_data, unlocked_scenarios)
+
+                # Volver al menú principal
+                if BACK_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    return player_points, shop_data, unlocked_scenarios
+                
+
+        pygame.display.update()
+
+def update_shop(selected_piece, points):
+    """
+    Mejora la probabilidad de aparición de una pieza seleccionada.
+    """
+    upgrade_cost = 100  # Costo de 100 puntos por mejora
+
+    if points >= upgrade_cost:
+        if shop_data[selected_piece] < 3:  # Máximo nivel es 3
+            points -= upgrade_cost
+            shop_data[selected_piece] += 1
+            print(f"Mejoraste la pieza {selected_piece} al nivel {shop_data[selected_piece]}!")
+        else:
+            print(f"La pieza {selected_piece} ya está en el nivel máximo.")
+    else:
+        print("No tienes suficientes puntos para mejorar esta pieza.")
+
+    return points  # Devolver los puntos actualizados
+
+def upgrade_piece(piece_type, points):
+    """
+    Mejora la probabilidad de aparición de una pieza.
+    """
+    upgrade_cost = 100  # Costo de la mejora
+
+    if points >= upgrade_cost:
+        points -= upgrade_cost
+        # Incrementa la probabilidad de aparición para la pieza
+        piece_probabilities[piece_type] = min(piece_probabilities.get(piece_type, 0) + 5, 15)  # Máximo +15%
+        print(f"Mejora aplicada a la pieza {piece_type}. Nueva probabilidad: {piece_probabilities[piece_type]}%")
+    else:
+        print("No tienes suficientes puntos para esta mejora.")
+
+    return points
+
+def unlock_scenario(scenario_number, points):
+    """
+    Desbloquea un escenario si el jugador tiene suficientes puntos.
+    """
+    unlock_cost = 300  # Costo para desbloquear un escenario
+
+    if points >= unlock_cost:
+        points -= unlock_cost
+        unlocked_scenarios.add(scenario_number)  # Añade el escenario al conjunto de desbloqueados
+        print(f"Escenario {scenario_number} desbloqueado.")
+    else:
+        print("No tienes suficientes puntos para desbloquear este escenario.")
+
+    return points
+
+# Código inicial para integrar el sistema de probabilidades en "tetris.py"
+
+# Paso 1: Crear estructura para manejar probabilidades y niveles
+piece_probabilities = {
+    'T': {'base_prob': 10, 'level': 0},  # Probabilidad base: 10%, Nivel inicial: 0
+    'L': {'base_prob': 10, 'level': 0},
+    'I': {'base_prob': 10, 'level': 0},
+    'J': {'base_prob': 10, 'level': 0},
+}
+# Datos de la tienda: nivel de mejora por cada pieza
+shop_data = {
+    "T": 0,  # Nivel inicial de la pieza T
+    "L": 0,  # Nivel inicial de la pieza L
+    "I": 0,  # Nivel inicial de la pieza I
+    "J": 0   # Nivel inicial de la pieza J
+}
+
+# Función para calcular las probabilidades ajustadas
+def calculate_piece_probabilities(shop_data):
+    """
+    Calcula las probabilidades ajustadas de las piezas basado en los niveles de la tienda.
+    :param shop_data: Diccionario que contiene los niveles de mejora de cada pieza.
+    :return: Diccionario con las probabilidades ajustadas de cada pieza.
+    """
+    total_prob = 0
+    adjusted_probs = {}
+
+    for piece, data in piece_probabilities.items():
+        # Aumentar probabilidad base en +5% por nivel desde shop_data
+        adjusted_prob = data['base_prob'] + (5 * shop_data.get(piece, 0))
+        adjusted_probs[piece] = adjusted_prob
+        total_prob += adjusted_prob
+
+    # Normalizar las probabilidades para que sumen 1 (o 100%)
+    for piece in adjusted_probs:
+        adjusted_probs[piece] = adjusted_probs[piece] / total_prob
+
+    return adjusted_probs
+
+# Inicializar probabilidades ajustadas
+adjusted_piece_probabilities = calculate_piece_probabilities(shop_data)
+
+
+unlocked_scenarios = set()
+
+def save_game(player_points, shop_data, unlocked_scenarios):
+    """
+    Guarda el progreso del jugador en un archivo JSON.
+    :param player_points: Puntos del jugador.
+    :param shop_data: Diccionario con los niveles de mejora de cada pieza.
+    :param unlocked_scenarios: Conjunto de escenarios desbloqueados.
+    """
+    save_data = {
+        "player_points": player_points,
+        "shop_data": shop_data,
+        "unlocked_scenarios": list(unlocked_scenarios)
+    }
+    with open('save_data.json', "w") as file:
+        json.dump(save_data, file)
+    print("Progreso guardado con éxito.")
+
+def load_game():
+    """
+    Carga el progreso del jugador desde un archivo JSON.
+    Si el archivo no existe o está vacío, devuelve valores predeterminados.
+    """
+    if not os.path.exists('save_data.json') or os.path.getsize('save_data.json') == 0:
+        print("Archivo de guardado no encontrado o vacío. Inicializando nuevo progreso.")
+        return 0, {"T": 0, "L": 0, "I": 0, "J": 0}, set()
+
+    try:
+        with open('save_data.json', "r") as file:
+            save_data = json.load(file)
+            player_points = save_data["player_points"]
+            shop_data = save_data["shop_data"]
+            unlocked_scenarios = set(save_data["unlocked_scenarios"])
+            print("Progreso cargado con éxito.")
+            return player_points, shop_data, unlocked_scenarios
+    except json.JSONDecodeError:
+        print("El archivo de guardado está corrupto. Inicializando nuevo progreso.")
+        return 0, {"T": 0, "L": 0, "I": 0, "J": 0}, set()
+
+
+def main_menu(player_points, shop_data, unlocked_scenarios):
     """
     Esta la estetica del menu y sus botones.
     """
     pygame.mixer.music.load("assets/musicamenu.mp3")
     pygame.mixer.music.play(-1)
-    while True:
+    print("Entrando al menú principal")
+    menu_running = True
+    
+    while menu_running:
         screen.blit(FondoMenu, (0, 0))
-
-
 
         MENU_MOUSE_POS = pygame.mouse.get_pos()
 
         MENU_TEXT = get_font(50).render("Humanity's Play", True, "#4631c9")
         MENU_RECT = MENU_TEXT.get_rect(center=(400, 50))
 
-        PLAY_BUTTON = Button(image=pygame.image.load("assets/Play Rect.png"), pos=(400, 300),
+        PLAY_BUTTON = Button(image=pygame.image.load("assets/Play Rect.png"), pos=(400, 150),
                             text_input="PLAY", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
-        QUIT_BUTTON = Button(image=pygame.image.load("assets/Quit Rect.png"), pos=(400, 450),
+        QUIT_BUTTON = Button(image=pygame.image.load("assets/Quit Rect.png"), pos=(400, 300),
                             text_input="QUIT", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
-        HOWPLAY_BUTTON = Button(image=pygame.image.load("assets/How Play.png"), pos=(400, 600),
+        HOWPLAY_BUTTON = Button(image=pygame.image.load("assets/Guide Rect.png"), pos=(400, 450),
                             text_input="HOW TO PLAY", font=get_font(30), base_color="#d7fcd4", hovering_color="White")
+        SHOP_BUTTON = Button(image=pygame.image.load("assets/Shop Rect.png"), pos=(400, 600),
+                            text_input="SHOP", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
 
         screen.blit(MENU_TEXT, MENU_RECT)
 
-        for button in [PLAY_BUTTON, QUIT_BUTTON, HOWPLAY_BUTTON]:
+        for button in [PLAY_BUTTON, QUIT_BUTTON, HOWPLAY_BUTTON, SHOP_BUTTON]:
             button.changeColor(MENU_MOUSE_POS)
             button.update(screen)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                save_game(player_points, shop_data, unlocked_scenarios)
                 pygame.mixer.music.stop()
                 pygame.quit()
                 sys.exit()
@@ -635,16 +867,21 @@ def main_menu():
                     pygame.mixer.music.stop()
                     debug_main(win)
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    save_game(player_points, shop_data, unlocked_scenarios)
                     pygame.mixer.music.stop()
                     pygame.quit()
                     sys.exit()
                 if HOWPLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
                     howplay()
-
+                if SHOP_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    shop_menu(player_points, shop_data, unlock_scenario)
         pygame.display.update()
+    return player_points, shop_data, unlocked_scenarios
 
 
 win = pygame.display.set_mode((s_width, s_height))
 pygame.display.set_caption('Tetris')
 
-main_menu()  # start game
+player_points, shop_data, unlocked_scenarios = load_game()
+player_points, shop_data, unlocked_scenarios = main_menu(player_points, shop_data, unlocked_scenarios)
+save_game(player_points, shop_data, unlocked_scenarios)
