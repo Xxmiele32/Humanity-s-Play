@@ -24,7 +24,7 @@ s_height = 700
 play_width = 300
 play_height = 600
 block_size = 30
-player_points = 0
+unlocked_scenarios = set()
 top_left_x = (s_width - play_width) // 2
 top_left_y = s_height - play_height
 size = (s_width, s_height)
@@ -450,7 +450,7 @@ def handle_bonus(bonus_active, bonus_end_time):
 
 # Example of diagnostic prints to investigate rows_cleared and energy_level issues
 
-def debug_main(win):
+def debug_main(win, player_points, shop_data, unlocked_scenarios):
     """
     Main game loop with added debug statements to investigate energy_level updates.
     """
@@ -464,7 +464,6 @@ def debug_main(win):
     current_piece = get_shape(adjusted_piece_probabilities)
     next_piece = get_shape(adjusted_piece_probabilities)
     clock = pygame.time.Clock()
-    player_points = 0
     fall_time = 0
     fall_speed = 0.27
     level_time = 0
@@ -498,6 +497,7 @@ def debug_main(win):
             if event.type == pygame.QUIT:
                 pygame.mixer.music.stop()
                 run = False
+                save_game(player_points, shop_data, unlocked_scenarios)
                 main_menu(player_points, shop_data, unlock_scenario)
 
             # Key Controls
@@ -548,21 +548,19 @@ def debug_main(win):
 
             # Clear rows after placing the piece
             rows_cleared = clear_rows(grid, locked_positions)
-            print(f"Debug: Rows cleared = {rows_cleared}")  # Debug print to check rows cleared
             
             if rows_cleared > 0:
                 points_to_add = rows_cleared * (100 if rows_cleared == 4 else 10)
                 if double_points:
                     points_to_add *= 2
-                score += points_to_add
+                score += points_to_add # mirate despues si ahora points to add tiene sentido
                 player_points += points_to_add
-                save_game(player_points, shop_data, unlock_scenario)
+                print(f"Score actual: {score}, Total acumulado: {player_points}")
                 (Bonus_sfx if rows_cleared == 4 else claerrow_sfx).play()
                 
                 # Update energy level and print to verify increment
                 prev_energy = energy_level  # Track previous energy level for comparison
                 energy_level = min(energy_level + max(1, rows_cleared // 2), 6)
-                print(f"Debug: Previous energy level = {prev_energy}, New energy level = {energy_level}")  # Debug print
 
         # Draw the window and update display
         draw_window(win, grid, score, last_score)
@@ -589,6 +587,7 @@ def debug_main(win):
             update_score(score)
             pygame.display.update()
             pygame.time.delay(7000)
+            return player_points, shop_data, unlocked_scenarios
 
     pygame.display.flip()
     pygame.time.delay(100)
@@ -784,23 +783,24 @@ def calculate_piece_probabilities(shop_data):
 adjusted_piece_probabilities = calculate_piece_probabilities(shop_data)
 
 
-unlocked_scenarios = set()
-
 def save_game(player_points, shop_data, unlocked_scenarios):
     """
     Guarda el progreso del jugador en un archivo JSON.
-    :param player_points: Puntos del jugador.
-    :param shop_data: Diccionario con los niveles de mejora de cada pieza.
-    :param unlocked_scenarios: Conjunto de escenarios desbloqueados.
     """
-    save_data = {
-        "player_points": player_points,
-        "shop_data": shop_data,
-        "unlocked_scenarios": list(unlocked_scenarios)
-    }
-    with open('save_data.json', "w") as file:
-        json.dump(save_data, file)
-    print("Progreso guardado con éxito.")
+    if not isinstance(unlocked_scenarios, set):  # Validar que sea un conjunto
+        unlocked_scenarios = set()
+    try:
+        save_data = {
+            "player_points": player_points,
+            "shop_data": shop_data,
+            "unlocked_scenarios": list(unlocked_scenarios)
+        }
+        with open('save_data.json', 'w') as file:
+            json.dump(save_data, file)
+        print("Progreso guardado con éxito.")
+    except Exception as e:
+        print(f"Error al guardar los datos: {e}")
+
 
 def load_game():
     """
@@ -812,7 +812,7 @@ def load_game():
         return 0, {"T": 0, "L": 0, "I": 0, "J": 0}, set()
 
     try:
-        with open('save_data.json', "r") as file:
+        with open('save_data.json', 'r') as file:
             save_data = json.load(file)
             player_points = save_data["player_points"]
             shop_data = save_data["shop_data"]
@@ -865,7 +865,7 @@ def main_menu(player_points, shop_data, unlocked_scenarios):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.mixer.music.stop()
-                    debug_main(win)
+                    player_points, shop_data, unlocked_scenarios = debug_main(win, player_points, shop_data, unlocked_scenarios)
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                     save_game(player_points, shop_data, unlocked_scenarios)
                     pygame.mixer.music.stop()
@@ -881,7 +881,6 @@ def main_menu(player_points, shop_data, unlocked_scenarios):
 
 win = pygame.display.set_mode((s_width, s_height))
 pygame.display.set_caption('Tetris')
-
 player_points, shop_data, unlocked_scenarios = load_game()
 player_points, shop_data, unlocked_scenarios = main_menu(player_points, shop_data, unlocked_scenarios)
 save_game(player_points, shop_data, unlocked_scenarios)
