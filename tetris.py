@@ -24,6 +24,7 @@ s_height = 700
 play_width = 300
 play_height = 600
 block_size = 30
+probabilidad = 15
 unlocked_scenarios = set()
 top_left_x = (s_width - play_width) // 2
 top_left_y = s_height - play_height
@@ -450,7 +451,7 @@ def handle_bonus(bonus_active, bonus_end_time):
 
 # Example of diagnostic prints to investigate rows_cleared and energy_level issues
 
-def debug_main(win, player_points, shop_data, unlocked_scenarios):
+def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities):
     """
     Main game loop with added debug statements to investigate energy_level updates.
     """
@@ -498,7 +499,7 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios):
                 pygame.mixer.music.stop()
                 run = False
                 save_game(player_points, shop_data, unlocked_scenarios)
-                main_menu(player_points, shop_data, unlock_scenario)
+                main_menu(player_points, shop_data, unlock_scenario, adjusted_piece_probabilities)
 
             # Key Controls
             if event.type == pygame.KEYDOWN:
@@ -616,15 +617,15 @@ def howplay():
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                main_menu(player_points, shop_data, unlock_scenario)
+                main_menu(player_points, shop_data, unlock_scenario, adjusted_piece_probabilities)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if MENU_BUTTON.checkForInput(MENU_MOUSE_POS):
-                    main_menu(player_points, shop_data, unlock_scenario)
+                    main_menu(player_points, shop_data, unlock_scenario, adjusted_piece_probabilities)
         
         pygame.display.update()
     # Cerrar la ventana cuando se termine el bucle
 
-def shop_menu(player_points, shop_data, unlocked_scenarios):
+def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities):
     """
     Implementa la lógica de la tienda con botones dinámicos y conexión a la mejora de piezas.
     """
@@ -672,42 +673,51 @@ def shop_menu(player_points, shop_data, unlocked_scenarios):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # Maneja las mejoras de probabilidades
                 if FIGURA_T_BUTTON.checkForInput(SHOP_MOUSE_POS):
-                    player_points = update_shop("T", player_points)
+                    player_points, adjusted_piece_probabilities = update_shop("T", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
+                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 if FIGURA_L_BUTTON.checkForInput(SHOP_MOUSE_POS):
-                    player_points = update_shop("L", player_points)
+                    player_points, adjusted_piece_probabilities = update_shop("L", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
+                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 if FIGURA_I_BUTTON.checkForInput(SHOP_MOUSE_POS):
-                    player_points = update_shop("I", player_points)
+                    player_points, adjusted_piece_probabilities = update_shop("I", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
+                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 if FIGURA_J_BUTTON.checkForInput(SHOP_MOUSE_POS):
-                    player_points = update_shop("J", player_points)
+                    player_points, adjusted_piece_probabilities = update_shop("J", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
+                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
 
                 # Volver al menú principal
                 if BACK_BUTTON.checkForInput(SHOP_MOUSE_POS):
-                    return player_points, shop_data, unlocked_scenarios
+                    return player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities
                 
 
         pygame.display.update()
 
-def update_shop(selected_piece, points):
+def update_shop(selected_piece, player_points, shop_data):
     """
     Mejora la probabilidad de aparición de una pieza seleccionada.
     """
-    upgrade_cost = 100  # Costo de 100 puntos por mejora
+    cost_per_level = 100
+    max_level = 3
 
-    if points >= upgrade_cost:
-        if shop_data[selected_piece] < 3:  # Máximo nivel es 3
-            points -= upgrade_cost
+    if selected_piece in shop_data:
+        if shop_data[selected_piece] < max_level and player_points >= cost_per_level:
             shop_data[selected_piece] += 1
-            print(f"Mejoraste la pieza {selected_piece} al nivel {shop_data[selected_piece]}!")
+            player_points -= cost_per_level
+            print(f"Mejoraste la pieza {selected_piece}. Nivel actual: {shop_data[selected_piece]}")
+            
+            # Calcular probabilidades ajustadas después de la mejora
+            adjusted_piece_probabilities = calculate_piece_probabilities(shop_data)
+            save_game(player_points, shop_data, unlocked_scenarios)  # Guardar después de actualizar
+            return player_points, adjusted_piece_probabilities  # Devuelve las actualizaciones
         else:
-            print(f"La pieza {selected_piece} ya está en el nivel máximo.")
-    else:
-        print("No tienes suficientes puntos para mejorar esta pieza.")
+            print("No tienes suficientes puntos o la mejora ya está en el nivel máximo.")
+    
+    return player_points, calculate_piece_probabilities(shop_data)  # Devuelve las probabilidades actuales si no se hizo una mejora
 
-    return points  # Devolver los puntos actualizados
 
 def upgrade_piece(piece_type, points):
     """
@@ -769,11 +779,11 @@ def calculate_piece_probabilities(shop_data):
 
     for piece, data in piece_probabilities.items():
         # Aumentar probabilidad base en +5% por nivel desde shop_data
-        adjusted_prob = data['base_prob'] + (5 * shop_data.get(piece, 0))
+        adjusted_prob = data['base_prob'] + (probabilidad * shop_data.get(piece, 0))
         adjusted_probs[piece] = adjusted_prob
         total_prob += adjusted_prob
 
-    # Normalizar las probabilidades para que sumen 1 (o 100%)
+    # Normalizar las probabilidades para que sumen 1
     for piece in adjusted_probs:
         adjusted_probs[piece] = adjusted_probs[piece] / total_prob
 
@@ -824,7 +834,7 @@ def load_game():
         return 0, {"T": 0, "L": 0, "I": 0, "J": 0}, set()
 
 
-def main_menu(player_points, shop_data, unlocked_scenarios):
+def main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities):
     """
     Esta la estetica del menu y sus botones.
     """
@@ -865,7 +875,7 @@ def main_menu(player_points, shop_data, unlocked_scenarios):
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.mixer.music.stop()
-                    player_points, shop_data, unlocked_scenarios = debug_main(win, player_points, shop_data, unlocked_scenarios)
+                    player_points, shop_data, unlocked_scenarios = debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities)
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                     save_game(player_points, shop_data, unlocked_scenarios)
                     pygame.mixer.music.stop()
@@ -874,7 +884,8 @@ def main_menu(player_points, shop_data, unlocked_scenarios):
                 if HOWPLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
                     howplay()
                 if SHOP_BUTTON.checkForInput(MENU_MOUSE_POS):
-                    shop_menu(player_points, shop_data, unlock_scenario)
+                    if SHOP_BUTTON.checkForInput(MENU_MOUSE_POS):
+                        player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities = shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities)
         pygame.display.update()
     return player_points, shop_data, unlocked_scenarios
 
@@ -882,5 +893,6 @@ def main_menu(player_points, shop_data, unlocked_scenarios):
 win = pygame.display.set_mode((s_width, s_height))
 pygame.display.set_caption('Tetris')
 player_points, shop_data, unlocked_scenarios = load_game()
-player_points, shop_data, unlocked_scenarios = main_menu(player_points, shop_data, unlocked_scenarios)
+adjusted_piece_probabilities = calculate_piece_probabilities(shop_data)  # Inicializar las probabilidades
+player_points, shop_data, unlocked_scenarios = main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities)
 save_game(player_points, shop_data, unlocked_scenarios)
