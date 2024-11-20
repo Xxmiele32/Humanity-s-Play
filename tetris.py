@@ -149,9 +149,107 @@ T = [['.....',
       '..0..',
       '.....']]
 
-shapes = [S, Z, I, O, J, L, T]
-shape_colors = [(0, 255, 0), (255, 0, 0), (0, 255, 255), (255, 255, 0), (255, 165, 0), (0, 0, 255), (128, 0, 128)]
+BOMERANG = [['.....',
+             '.....',
+             '..00.',
+             '.00..',
+             '.0...',
+             '.....'],
+            ['.....',
+             '.....',
+             '.00..',
+             '..00.',
+             '...0.',
+             '.....'],
+            ['.....',
+             '.....',
+             '...0.',
+             '..00.',
+             '.00..',
+             '.....'],
+            ['.....',
+             '.....',
+             '.0...',
+             '.00..',
+             '..00.',
+             '.....']]
+UNO = [['.....',
+        '.....',
+        '.....',
+        '..0..',
+        '.....',
+        '.....']]
+MAS = [['.....',
+        '.....',
+        '..0..',
+        '.000.',
+        '..0..',
+        '.....']]
 
+H = [['.....',
+      '.0.0.',
+      '.000.',
+      '.0.0.',
+      '.....'],
+     ['.....',
+      '.000.',
+      '..0..',
+      '.000.',
+      '.....']]
+
+CRUZ = [['.....',
+          '.0...',
+          '..0..',
+          '.....',
+          '.....'],
+         ['.....',
+          '..0..',
+          '.0...',
+          '.....',
+          '.....']]
+
+TRES = [['.....',
+         '.....',
+         '..0..',
+         '.0...',
+         '..0..',
+         '.....'],
+        ['.....',
+         '.....',
+         '..0..',
+         '.0.0.',
+         '.....',
+         '.....'],
+        ['.....',
+         '.....',
+         '..0..',
+         '...0.',
+         '..0..',
+         '.....'],
+        ['.....',
+         '.....',
+         '.....',
+         '.0.0.',
+         '..0..',
+         '.....']]
+
+
+DOS = [['.....',
+        '.0...',
+        '.0...',
+        '.....',
+        '.....'],
+       ['.....',
+        '.....',
+        '.00..',
+        '.....',
+        '.....']]
+
+
+
+shapes = [S, Z, I, O, J, L, T, BOMERANG, H, MAS, UNO, CRUZ, TRES, DOS]
+shape_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255), (128, 0, 128),(255, 165, 0), (64, 224, 208), (100, 149, 237), (255, 192, 203), (128, 128, 128), (0, 128, 128), (255, 255, 255),(123, 104, 238), (186, 85, 211), (70, 130, 180), (255, 69, 0), (154, 205, 50), (47, 79, 79)]
+# index 0 - 6 represent shape
 class Piece(object):
     """
     Esta clase se encarga de dar la informacion mas basica al objeto
@@ -242,6 +340,30 @@ def get_shape(probabilities):
         return Piece(5, 0, I)
     elif selected_piece == "J":
         return Piece(5, 0, J)
+    elif selected_piece == "S":
+        return Piece(5, 0, S)
+    elif selected_piece == "Z":
+        return Piece(5, 0, Z)
+    elif selected_piece == "O":
+        return Piece(5, 0, O)
+    elif selected_piece == "BOMERANG":
+        return Piece(5, 0, BOMERANG)
+    elif selected_piece == "H":
+        return Piece(5, 0, H)
+    elif selected_piece == "MAS":
+        return Piece(5, 0, MAS)
+    elif selected_piece == "UNO":
+        return Piece(5, 0, UNO)
+    elif selected_piece == "CRUZ":
+        return Piece(5, 0, CRUZ)
+    elif selected_piece == "TRES":
+        return Piece(5, 0, TRES)
+    elif selected_piece == "DOS":
+        return Piece(5, 0, DOS)
+
+
+
+        
     # Agrega otras formas según sea necesario
 
 
@@ -602,7 +724,7 @@ def howplay():
     Menu sobre como jugar
     """
     # Cargar imagen de fondo para la ventana "howplay"
-    FondoJuego = pygame.image.load("assets/fondojuego.jpg")
+    FondoJuego = pygame.image.load("assets/fondojuegoTuto.jpg")
     FondoJuego = pygame.transform.scale(FondoJuego, (s_width, s_height))
     
     # Crear un bucle de eventos para mostrar la ventana
@@ -648,20 +770,25 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
         screen.blit(POINTS_TEXT, POINTS_RECT)
 
         # Botones de las piezas
-        FIGURA_T_BUTTON = Button(image=Margen, pos=(307, 580),
+        FIGURA_T_BUTTON = Button(image=Margen, pos=(205, 580),
                                  text_input="FIGURA T", font=get_font(10), base_color="White", hovering_color="Green")
-        FIGURA_L_BUTTON = Button(image=Margen, pos=(408, 580),
+        FIGURA_L_BUTTON = Button(image=Margen, pos=(307, 580),
                                  text_input="FIGURA L", font=get_font(10), base_color="White", hovering_color="Green")
-        FIGURA_I_BUTTON = Button(image=Margen, pos=(509, 580),
+        FIGURA_I_BUTTON = Button(image=Margen, pos=(408, 580),
                                  text_input="FIGURA I", font=get_font(10), base_color="White", hovering_color="Green")
-        FIGURA_J_BUTTON = Button(image=Margen, pos=(205, 580),
+        FIGURA_J_BUTTON = Button(image=Margen, pos=(509, 580),
                                  text_input="FIGURA J", font=get_font(10), base_color="White", hovering_color="Green")
-
+        FIGURA_S_BUTTON = Button(image=Margen, pos=(610, 580),
+                                 text_input="FIGURA S", font=get_font(10), base_color="White", hovering_color="Green")
+        FIGURA_Z_BUTTON = Button(image=Margen, pos=(205, 523),
+                                 text_input="FIGURA Z", font=get_font(10), base_color="White", hovering_color="Green")
+        FIGURA_O_BUTTON = Button(image=Margen, pos=(307, 523),
+                                 text_input="FIGURA O", font=get_font(10), base_color="White", hovering_color="Green") 
         BACK_BUTTON = Button(image=Margen, pos=(400, 100),
                              text_input="VOLVER", font=get_font(10), base_color="White", hovering_color="Red")
 
         # Dibuja los botones
-        for button in [FIGURA_T_BUTTON, FIGURA_L_BUTTON, FIGURA_I_BUTTON, FIGURA_J_BUTTON, BACK_BUTTON]:
+        for button in [FIGURA_T_BUTTON, FIGURA_L_BUTTON, FIGURA_I_BUTTON, FIGURA_J_BUTTON, FIGURA_S_BUTTON, FIGURA_Z_BUTTON, FIGURA_O_BUTTON, BACK_BUTTON]:
             button.changeColor(SHOP_MOUSE_POS)
             button.update(screen)
 
@@ -689,6 +816,18 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
                     save_game(player_points, shop_data, unlocked_scenarios)
                     print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
 
+                if FIGURA_S_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    player_points, adjusted_piece_probabilities = update_shop("S", player_points, shop_data)
+                    save_game(player_points, shop_data, unlocked_scenarios)
+                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
+                if FIGURA_Z_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    player_points, adjusted_piece_probabilities = update_shop("Z", player_points, shop_data)
+                    save_game(player_points, shop_data, unlocked_scenarios)
+                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
+                if FIGURA_O_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    player_points, adjusted_piece_probabilities = update_shop("O", player_points, shop_data)
+                    save_game(player_points, shop_data, unlocked_scenarios)
+                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 # Volver al menú principal
                 if BACK_BUTTON.checkForInput(SHOP_MOUSE_POS):
                     return player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities
@@ -758,14 +897,27 @@ piece_probabilities = {
     'L': {'base_prob': 10, 'level': 0},
     'I': {'base_prob': 10, 'level': 0},
     'J': {'base_prob': 10, 'level': 0},
+    'S': {'base_prob': 10, 'level': 0},
+    'Z': {'base_prob': 10, 'level': 0},
+    'O': {'base_prob': 10, 'level': 0},
+
+
+
+
+  
 }
 # Datos de la tienda: nivel de mejora por cada pieza
 shop_data = {
     "T": 0,  # Nivel inicial de la pieza T
     "L": 0,  # Nivel inicial de la pieza L
     "I": 0,  # Nivel inicial de la pieza I
-    "J": 0   # Nivel inicial de la pieza J
+    "J": 0,  # Nivel inicial de la pieza J
+    "S": 0,  # Nivel inicial de la pieza L
+    "Z": 0,  # Nivel inicial de la pieza I
+    "O": 0,  # Nivel inicial de la pieza J
 }
+
+ 
 
 # Función para calcular las probabilidades ajustadas
 def calculate_piece_probabilities(shop_data):
@@ -819,7 +971,10 @@ def load_game():
     """
     if not os.path.exists('save_data.json') or os.path.getsize('save_data.json') == 0:
         print("Archivo de guardado no encontrado o vacío. Inicializando nuevo progreso.")
-        return 0, {"T": 0, "L": 0, "I": 0, "J": 0}, set()
+        return 0, {"T": 0, "L": 0, "I": 0, "J": 0, "S": 0, "Z": 0, "O": 0}, set()
+
+
+
 
     try:
         with open('save_data.json', 'r') as file:
@@ -831,7 +986,7 @@ def load_game():
             return player_points, shop_data, unlocked_scenarios
     except json.JSONDecodeError:
         print("El archivo de guardado está corrupto. Inicializando nuevo progreso.")
-        return 0, {"T": 0, "L": 0, "I": 0, "J": 0}, set()
+        return 0, {"T": 0, "L": 0, "I": 0, "J": 0, "S": 0, "Z": 0, "O": 0}, set()
 
 
 def main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities):
