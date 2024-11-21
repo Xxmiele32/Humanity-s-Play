@@ -39,7 +39,7 @@ FondoJuego = pygame.transform.scale(FondoJuego, (s_width, s_height))
 Escenario1 = pygame.image.load("assets/fondoacuatico.jpg")
 Escenario2 = pygame.image.load("assets/fondodesertico.jpg")
 Escenario3 = pygame.image.load("assets/fondourbano.jpg")
-energy_bar_images = [pygame.transform.scale(pygame.image.load(f"assets/barra_energia_{i}.png"),(s_width -300, s_height))for i in range(0,7)]
+energy_bar_images = [pygame.transform.scale(pygame.image.load(f"assets/barra_energia_{i}.png"),(s_width -300, s_height))for i in range(8)]
 gameover_sfx = pygame.mixer.Sound("assets/me-game-gameover-101soundboards.mp3")
 harddrop_sfx = pygame.mixer.Sound("assets/se-game-harddrop-101soundboards.mp3")
 landing_sfx = pygame.mixer.Sound("assets/se-game-landing-101soundboards.mp3")
@@ -371,10 +371,6 @@ def get_shape(probabilities):
         return Piece(5, 0, TRES)
     elif selected_piece == "DOS":
         return Piece(5, 0, DOS)
-
-
-
-        
     # Agrega otras formas según sea necesario
 
 
@@ -567,7 +563,7 @@ def draw_held_piece(held_piece, surface):
 
 def update_energy_bar(screen, energy_level):
     """Actualiza la barra de energía en función del nivel."""
-    image_index = min(energy_level - 1, 7)
+    image_index = max(0, min(len(energy_bar_images) - 1, energy_level - 1))
     screen.blit(energy_bar_images[image_index], (-130,300))
 
 def activate_bonus():
@@ -609,7 +605,7 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
     fall_speed = 0.27
     level_time = 0
     score = 0
-    energy_level = 0
+    energy_level = 1
     double_points = False
     bonus_active = False
     bonus_end_time = None
@@ -681,7 +677,7 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
                         )
                 elif event.key == pygame.K_g and energy_level >= 8 and not bonus_active:
                     double_points, bonus_active, bonus_end_time = activate_bonus()
-                    energy_level = 0  # Reset energy bar
+                    energy_level = 1  # Reset energy bar
         if paused:  # Si el juego está pausado, mostrar pantalla de pausa
             draw_text_middle("PAUSED", 60, (255, 255, 255), win)
             pygame.display.update()
@@ -713,7 +709,7 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
                 (Bonus_sfx if rows_cleared == 4 else claerrow_sfx).play()
                 
                 # Update energy level and print to verify increment
-                energy_level = min(energy_level + rows_cleared, 8)
+                energy_level = max(0, min(energy_level + rows_cleared, 8))
 
 
         # Draw the window and update display
