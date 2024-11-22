@@ -1,5 +1,5 @@
 """
-El videojuego Tetris
+El videojuego Humanity's Play
 """
 # pylint: disable=invalid-name
 # pylint: disable=no-member
@@ -24,7 +24,7 @@ s_height = 700
 play_width = 300
 play_height = 600
 block_size = 30
-probabilidad = 15
+probabilidad = 30
 unlocked_scenarios = set()
 top_left_x = (s_width - play_width) // 2
 top_left_y = s_height - play_height
@@ -40,12 +40,13 @@ Escenario1 = pygame.image.load("assets/fondoacuatico.jpg")
 Escenario2 = pygame.image.load("assets/fondodesertico.jpg")
 Escenario3 = pygame.image.load("assets/fondourbano.jpg")
 energy_bar_images = [pygame.transform.scale(pygame.image.load(f"assets/barra_energia_{i}.png"),(s_width -300, s_height))for i in range(8)]
-gameover_sfx = pygame.mixer.Sound("assets/me-game-gameover-101soundboards.mp3")
-harddrop_sfx = pygame.mixer.Sound("assets/se-game-harddrop-101soundboards.mp3")
-landing_sfx = pygame.mixer.Sound("assets/se-game-landing-101soundboards.mp3")
-rotate_sfx = pygame.mixer.Sound("assets/se-game-rotate-101soundboards.mp3")
-claerrow_sfx = pygame.mixer.Sound("assets/se-game-single-101soundboards.mp3")
-Bonus_sfx = pygame.mixer.Sound("assets/se-game-tetris-101soundboards.mp3")
+gameover_sfx = pygame.mixer.Sound("assets/lose.mp3")
+harddrop_sfx = pygame.mixer.Sound("assets/colocacionrapida.mp3")
+landing_sfx = pygame.mixer.Sound("assets/colocacionpieza.mp3")
+rotate_sfx = pygame.mixer.Sound("assets/rotate.mp3")
+claerrow_sfx = pygame.mixer.Sound("assets/1linea.mp3")
+Bonus_sfx = pygame.mixer.Sound("assets/4lineas.mp3")
+Button_sfx = pygame.mixer.Sound("assets/button.mp3")
 Bonus_music = pygame.mixer.Sound("assets/bonus.mp3")
 # las formas de las figuras
 S = [['.....',
@@ -199,13 +200,13 @@ H = [['.....',
       '.....'],
       ['.....',
       '.....',
-      '..00.',
       '..0..',
+      '..00.',
       '.....'],
      ['.....',
       '.....',
-      '..0..',
       '..00.',
+      '..0..',
       '.....']]
 
 CRUZ = [['.....',
@@ -274,7 +275,7 @@ class Piece(object):
 
 def create_grid(locked_pos={}):
     """
-    Crea la matriz a donde se jugara el tetris
+    Crea la matriz a donde se jugara Humanity's Play
     """
     # Todas las celdas que esten vacias seran de color negro pero las celdas bloqueadas seran del color correspondiente a su figura
     grid = [[(0,0,0) for _ in range(10)] for _ in range(20)]
@@ -450,7 +451,7 @@ def draw_window(surface, grid, current_scenario, score=0, last_score = 0):
     surface.blit(background_image, (0,0))
     pygame.font.init()
     font = pygame.font.SysFont('comicsans', 60)
-    label = font.render('Tetris', 1, (255,255,255))
+    label = font.render("Humanity's Play", 1, (255,255,255))
 
     surface.blit(label, (top_left_x + play_width/2 - (label.get_width() / 2), 10))
 
@@ -566,21 +567,23 @@ def update_energy_bar(screen, energy_level):
     image_index = max(0, min(len(energy_bar_images) - 1, energy_level - 1))
     screen.blit(energy_bar_images[image_index], (-130,300))
 
-def activate_bonus():
+def activate_bonus(shop_data):
     """Activa el bono con doble puntaje."""
     print("Bonus activado")
     double_points = True
     bonus_active = True
-    bonus_end_time = time.time() + 10  # Duración de 10 segundos
+    bonus_end_time = time.time() + 10 + shop_data["bonus_time"] * 5  # Duración de 10 segundos
     pygame.mixer.music.stop()
-    Bonus_music.play()
+    pygame.mixer.music.load("assets/bonus.mp3")
+    pygame.mixer.music.play(-1)
     return double_points, bonus_active, bonus_end_time
 
 def handle_bonus(bonus_active, bonus_end_time):
     """Controla el tiempo de duración del bono."""
     if bonus_active and time.time() >= bonus_end_time:
         print("Se ha acabado el bonus")
-        Bonus_music.stop()
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load("assets/musicajuego.mp3")
         pygame.mixer.music.play(-1)
         return False, None  # Desactiva el bono
     return True, bonus_end_time
@@ -616,7 +619,6 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
     pygame.mixer.music.play(-1)
 
     while run:
-        print(f"Nivel de energía inicial: {energy_level}")
         grid = create_grid(locked_positions)
         pygame.display.update() 
         fall_time += clock.get_rawtime()
@@ -676,7 +678,7 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
                             held_piece, current_piece, next_piece, can_hold
                         )
                 elif event.key == pygame.K_g and energy_level >= 8 and not bonus_active:
-                    double_points, bonus_active, bonus_end_time = activate_bonus()
+                    double_points, bonus_active, bonus_end_time = activate_bonus(shop_data)
                     energy_level = 1  # Reset energy bar
         if paused:  # Si el juego está pausado, mostrar pantalla de pausa
             draw_text_middle("PAUSED", 60, (255, 255, 255), win)
@@ -702,7 +704,8 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
             if rows_cleared > 0:
                 points_to_add = rows_cleared * (100 if rows_cleared == 4 else 10)
                 if double_points:
-                    points_to_add *= 2
+                    points_to_add *= (2 + shop_data["bonus_multiplier"])
+                    print("El multiplicador es de:", points_to_add)
                 score += points_to_add # mirate despues si ahora points to add tiene sentido
                 player_points += points_to_add
                 print(f"Score actual: {score}, Total acumulado: {player_points}")
@@ -753,7 +756,7 @@ def howplay():
     FondoJuego = pygame.image.load("assets/fondojuegoTuto.jpg")
     FondoJuego = pygame.transform.scale(FondoJuego, (s_width, s_height))
     
-    # Crear un bucle de eventos para mostrar la ventana
+    # Crear un bucle de eventos para mostrar la ventana 
     while True:
         screen.blit(FondoJuego, (0, 0))  # Dibujar la imagen de fondo en la ventana
         MENU_MOUSE_POS = pygame.mouse.get_pos()
@@ -768,6 +771,7 @@ def howplay():
                 main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if MENU_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    Button_sfx.play()
                     main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario)
         
         pygame.display.update()
@@ -777,6 +781,8 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
     """
     Implementa la lógica de la tienda con botones dinámicos y conexión a la mejora de piezas.
     """
+    pygame.mixer.music.load("assets/Hip Shop.mp3")
+    pygame.mixer.music.play(-1)
     custom_background = pygame.image.load("assets/custom_background.jpg")
     custom_background = pygame.transform.scale(custom_background, (s_width, s_height))
     shop_background = pygame.image.load("assets/shop_background.png")
@@ -787,8 +793,6 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
     while True:
         screen.blit(custom_background, (0, 0))
         screen.blit(shop_background, (0, 0))
-        print(f"Escenarios desbloqueados: {unlocked_scenarios}")
-        print(f"Escenario seleccionado: {current_scenario}")
 
         SHOP_MOUSE_POS = pygame.mouse.get_pos()
 
@@ -806,7 +810,7 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
                                  text_input="FIGURA I", font=get_font(10), base_color="White", hovering_color="Green")
         FIGURA_J_BUTTON = Button(image=Margen, pos=(509, 580),
                                  text_input="FIGURA J", font=get_font(10), base_color="White", hovering_color="Green")
-        FIGURA_S_BUTTON = Button(image=Margen, pos=(610, 580),
+        FIGURA_S_BUTTON = Button(image=Margen, pos=(612, 578),
                                  text_input="FIGURA S", font=get_font(10), base_color="White", hovering_color="Green")
         FIGURA_Z_BUTTON = Button(image=Margen, pos=(205, 523),
                                  text_input="FIGURA Z", font=get_font(10), base_color="White", hovering_color="Green")
@@ -814,18 +818,23 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
                                  text_input="FIGURA O", font=get_font(10), base_color="White", hovering_color="Green")
         BACK_BUTTON = Button(image=Margen, pos=(400, 100),
                              text_input="VOLVER", font=get_font(10), base_color="White", hovering_color="Red")
-        ESCENARIO_1_BUTTON = Button(image=Margen, pos=(552, 269),
+        ESCENARIO_1_BUTTON = Button(image=Margen, pos=(552, 270),
                                     text_input="ESCENARIO 1", font=get_font(8),
                                     base_color="White", hovering_color="Green")
-        ESCENARIO_2_BUTTON = Button(image=Margen, pos=(550, 330),
+        ESCENARIO_2_BUTTON = Button(image=Margen, pos=(550, 332),
                                     text_input="ESCENARIO 2", font=get_font(8),
                                     base_color="White", hovering_color="Green")
-        ESCENARIO_3_BUTTON = Button(image=Margen, pos=(550, 392),
+        ESCENARIO_3_BUTTON = Button(image=Margen, pos=(550, 393),
                                     text_input="ESCENARIO 3", font=get_font(8),
                                     base_color="White", hovering_color="Green")
-
+        BONUS_TIME_BUTTON = Button(image=Margen, pos=(408, 523),
+                           text_input="TIEMPO BONUS", font=get_font(7), base_color="White", hovering_color="Green")
+        BONUS_MULTIPLIER_BUTTON = Button(image=Margen, pos=(509, 524),
+                                 text_input="BONUS MULTI", font=get_font(7), base_color="White", hovering_color="Green")
+        DONATION_BUTTON = Button(image=Margen, pos=(611, 523),
+                                 text_input="DONAR", font=get_font(10), base_color="White", hovering_color="Green")
         # Dibuja los botones
-        for button in [FIGURA_T_BUTTON, FIGURA_L_BUTTON, FIGURA_I_BUTTON, FIGURA_J_BUTTON, FIGURA_S_BUTTON, FIGURA_Z_BUTTON, FIGURA_O_BUTTON, ESCENARIO_1_BUTTON, ESCENARIO_2_BUTTON, ESCENARIO_3_BUTTON , BACK_BUTTON]:
+        for button in [FIGURA_T_BUTTON, FIGURA_L_BUTTON, FIGURA_I_BUTTON, FIGURA_J_BUTTON, FIGURA_S_BUTTON, FIGURA_Z_BUTTON, FIGURA_O_BUTTON, ESCENARIO_1_BUTTON, ESCENARIO_2_BUTTON, ESCENARIO_3_BUTTON, BONUS_TIME_BUTTON, BONUS_MULTIPLIER_BUTTON , DONATION_BUTTON, BACK_BUTTON]:
             button.changeColor(SHOP_MOUSE_POS)
             button.update(screen)
 
@@ -838,34 +847,34 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
                 # Maneja las mejoras de probabilidades
                 if FIGURA_T_BUTTON.checkForInput(SHOP_MOUSE_POS):
                     player_points, adjusted_piece_probabilities = update_shop("T", player_points, shop_data)
+                    Button_sfx.play()
                     save_game(player_points, shop_data, unlocked_scenarios)
-                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 if FIGURA_L_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
                     player_points, adjusted_piece_probabilities = update_shop("L", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
-                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 if FIGURA_I_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
                     player_points, adjusted_piece_probabilities = update_shop("I", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
-                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 if FIGURA_J_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
                     player_points, adjusted_piece_probabilities = update_shop("J", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
-                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
-
                 if FIGURA_S_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
                     player_points, adjusted_piece_probabilities = update_shop("S", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
-                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 if FIGURA_Z_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
                     player_points, adjusted_piece_probabilities = update_shop("Z", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
-                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 if FIGURA_O_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
                     player_points, adjusted_piece_probabilities = update_shop("O", player_points, shop_data)
                     save_game(player_points, shop_data, unlocked_scenarios)
-                    print("Probabilidades ajustadas actualizadas:", adjusted_piece_probabilities)
                 if ESCENARIO_1_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
                     if 1 not in unlocked_scenarios:
                         if player_points >= 300:
                             player_points -= 300
@@ -876,6 +885,7 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
                     current_scenario = 1
                 # Escenario 2
                 if ESCENARIO_2_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
                     if 2 not in unlocked_scenarios:
                         if player_points >= 300:
                             player_points -= 300
@@ -886,6 +896,7 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
                     current_scenario = 2
                 # Escenario 3
                 if ESCENARIO_3_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
                     if 3 not in unlocked_scenarios:
                         if player_points >= 300:
                             player_points -= 300
@@ -894,8 +905,55 @@ def shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
                         else:
                             print("No tienes suficientes puntos.")
                     current_scenario = 3
+                if BONUS_TIME_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
+                    if shop_data["bonus_time"] < 3:
+                        if player_points >= 100:
+                            player_points -= 100
+                            shop_data["bonus_time"] += 1
+                            print(f"Tiempo bonus mejorado al nivel {shop_data['bonus_time']}!")
+                        else:
+                            print("No tienes suficientes puntos para mejorar el tiempo bonus.")
+                    else:
+                        print("El tiempo bonus ya está en el nivel máximo.")
+
+                if BONUS_MULTIPLIER_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
+                    if shop_data["bonus_multiplier"] < 3:
+                        if player_points >= 100:
+                            player_points -= 100
+                            shop_data["bonus_multiplier"] += 1
+                            print(f"Multiplicador mejorado al nivel {shop_data['bonus_multiplier']}!")
+                        else:
+                            print("No tienes suficientes puntos para mejorar el multiplicador.")
+                    else:
+                        print("El multiplicador ya está en el nivel máximo.")
+                if DONATION_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
+                    donated = player_points
+                    player_points -= player_points
+                    if donated == 0:
+                        print("Steve: Pero tu me ves la cara de tonto o que?")
+                    elif donated < 100:
+                        print("Steve: Gracias por la calderilla... supongo")
+                    elif donated < 500:
+                        print("Steve: No hubiera sido mejor gastar este dinero en comprar algunos de mis articulos?")
+                    elif donated < 1000:
+                        print("Steve: ¡Muchas gracias! Podre gastar este dinero en el alquiler de este mes")
+                    elif donated < 5000:
+                        print("Steve: Realmente eres bueno en este juego, eh?")
+                    elif donated < 10000:
+                        print("Steve: A casa platita *emoji de dinero*")
+                    elif donated < 25000:
+                        print("Steve: Voy a ser el proximo milste bist")
+                    elif donated < 50000:
+                        print("Sea quien sea que lea esto y dando igual cuanto anime hayas visto porfavor mira Houseki no kuni")
+                    elif donated < 10000000:
+                        print("Estoy escribiendo esto a las 0:53 de la noche mientras escucho (chill breakcore songs to fall asleep listening to [part 2)]... Realmente deberia de parar ya")
                 # Volver al menú principal
                 if BACK_BUTTON.checkForInput(SHOP_MOUSE_POS):
+                    Button_sfx.play()
+                    pygame.mixer.music.stop()
                     return player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario
                 
 
@@ -912,7 +970,7 @@ def update_shop(selected_piece, player_points, shop_data):
         if shop_data[selected_piece] < max_level and player_points >= cost_per_level:
             shop_data[selected_piece] += 1
             player_points -= cost_per_level
-            print(f"Mejoraste la pieza {selected_piece}. Nivel actual: {shop_data[selected_piece]}")
+            print(f"¿Mejoraste la pieza {selected_piece} ahora tiene un 5% mas probabilidad de aparecer!. Nivel actual: {shop_data[selected_piece]}")
             
             # Calcular probabilidades ajustadas después de la mejora
             adjusted_piece_probabilities = calculate_piece_probabilities(shop_data)
@@ -922,23 +980,6 @@ def update_shop(selected_piece, player_points, shop_data):
             print("No tienes suficientes puntos o la mejora ya está en el nivel máximo.")
     
     return player_points, calculate_piece_probabilities(shop_data)  # Devuelve las probabilidades actuales si no se hizo una mejora
-
-
-def upgrade_piece(piece_type, points):
-    """
-    Mejora la probabilidad de aparición de una pieza.
-    """
-    upgrade_cost = 100  # Costo de la mejora
-
-    if points >= upgrade_cost:
-        points -= upgrade_cost
-        # Incrementa la probabilidad de aparición para la pieza
-        piece_probabilities[piece_type] = min(piece_probabilities.get(piece_type, 0) + 5, 15)  # Máximo +15%
-        print(f"Mejora aplicada a la pieza {piece_type}. Nueva probabilidad: {piece_probabilities[piece_type]}%")
-    else:
-        print("No tienes suficientes puntos para esta mejora.")
-
-    return points
 
 def unlock_scenario(scenario_number, points):
     """
@@ -955,11 +996,8 @@ def unlock_scenario(scenario_number, points):
 
     return points
 
-# Código inicial para integrar el sistema de probabilidades en "tetris.py"
-
-# Paso 1: Crear estructura para manejar probabilidades y niveles
 piece_probabilities = {
-    'T': {'base_prob': 10, 'level': 0},  # Probabilidad base: 10%, Nivel inicial: 0
+    'T': {'base_prob': 10, 'level': 0},
     'L': {'base_prob': 10, 'level': 0},
     'I': {'base_prob': 10, 'level': 0},
     'J': {'base_prob': 10, 'level': 0},
@@ -986,14 +1024,8 @@ shop_data = {
     "S": 0,  # Nivel inicial de la pieza L
     "Z": 0,  # Nivel inicial de la pieza I
     "O": 0,  # Nivel inicial de la pieza J
-
-    "BOMERANG": 0,  # Nivel inicial de la pieza T
-    "H": 0,  # Nivel inicial de la pieza L
-    "MAS": 0,  # Nivel inicial de la pieza I
-    "UNO": 0,  # Nivel inicial de la pieza J
-    "CRUZ": 0,  # Nivel inicial de la pieza L
-    "TRES": 0,  # Nivel inicial de la pieza I
-    "DOS": 0,  # Nivel inicial de la pieza J
+    "bonus_time": 0,
+    "bonus_multiplier": 0,
 }
 
 # Función para calcular las probabilidades ajustadas
@@ -1049,7 +1081,7 @@ def load_game():
     """
     if not os.path.exists('save_data.json') or os.path.getsize('save_data.json') == 0:
         print("Archivo de guardado no encontrado o vacío. Inicializando nuevo progreso.")
-        return 0, {"T": 0, "L": 0, "I": 0, "J": 0, "S": 0, "Z": 0, "O": 0}, set(), 1
+        return 0, {"T": 0, "L": 0, "I": 0, "J": 0, "S": 0, "Z": 0, "O": 0, "bonus_time": 0, "bonus_multiplier": 0}, set(), 1
     try:
         with open('save_data.json', 'r') as file:
             save_data = json.load(file)
@@ -1061,7 +1093,7 @@ def load_game():
             return player_points, shop_data, unlocked_scenarios, current_scenario
     except json.JSONDecodeError:
         print("El archivo de guardado está corrupto. Inicializando nuevo progreso.")
-        return 0, {"T": 0, "L": 0, "I": 0, "J": 0, "S": 0, "Z": 0, "O": 0 }, set(), 1
+        return 0, {"T": 0, "L": 0, "I": 0, "J": 0, "S": 0, "Z": 0, "O": 0, "bonus_time": 0, "bonus_multiplier": 0}, set(), 1
 
 
 def main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario):
@@ -1097,12 +1129,14 @@ def main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                Button_sfx.play()
                 save_game(player_points, shop_data, unlocked_scenarios)
                 pygame.mixer.music.stop()
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    Button_sfx.play()
                     pygame.mixer.music.stop()
                     player_points, shop_data, unlocked_scenarios, current_scenario = debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario)
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
@@ -1111,16 +1145,18 @@ def main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
                     pygame.quit()
                     sys.exit()
                 if HOWPLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    Button_sfx.play()
                     howplay()
                 if SHOP_BUTTON.checkForInput(MENU_MOUSE_POS):
                     if SHOP_BUTTON.checkForInput(MENU_MOUSE_POS):
+                        Button_sfx.play()
                         player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario = shop_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario)
         pygame.display.update()
     return player_points, shop_data, unlocked_scenarios, current_scenario
 
 
 win = pygame.display.set_mode((s_width, s_height))
-pygame.display.set_caption('Tetris')
+pygame.display.set_caption("Humanity's play")
 player_points, shop_data, unlocked_scenarios, current_scenario = load_game()
 adjusted_piece_probabilities = calculate_piece_probabilities(shop_data)  # Inicializar las probabilidades
 player_points, shop_data, unlocked_scenarios, current_scenario = main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario) # aqui
