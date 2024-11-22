@@ -255,7 +255,7 @@ DOS = [['.....',
 
 shapes = [S, Z, I, O, J, L, T, BOMERANG, H, UNO, CRUZ, TRES, DOS]
 shape_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255), (128, 0, 128),(255, 165, 0), (64, 224, 208), (100, 149, 237), (255, 192, 203), (128, 128, 128), (0, 128, 128), (255, 255, 255),(123, 104, 238), (186, 85, 211), (70, 130, 180), (255, 69, 0), (154, 205, 50), (47, 79, 79)]
-# index 0 - 6 Representacion de las piezas
+
 class Piece(object):
     """
     Esta clase se encarga de dar la informacion mas basica al objeto
@@ -323,9 +323,7 @@ def check_lost(positions):
 
 def get_shape(probabilities):
     """
-    Genera una nueva pieza basada en probabilidades ajustadas.
-    :param probabilities: Diccionario con las probabilidades ajustadas de cada pieza.
-    :return: Una pieza seleccionada aleatoriamente (la estructura específica del juego).
+    Genera una nueva pieza basada en probabilidades ajustadas.W
     """
     pieces = []
 
@@ -576,11 +574,11 @@ def handle_bonus(bonus_active, bonus_end_time):
         pygame.mixer.music.stop()
         pygame.mixer.music.load("assets/musicajuego.mp3")
         pygame.mixer.music.play(-1)
-        return False, None  
+        return False, None
     return True, bonus_end_time
 
 
-def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario):
+def main_loop(win, player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario):
     """
     Bucle principal del juego con declaraciones de depuración añadidas para investigar las actualizaciones del nivel de energía.
     """
@@ -618,7 +616,7 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
             if fall_speed > 0.12:
                 fall_speed -= 0.005
 
-        if fall_time / 1000 > fall_speed and not paused: 
+        if fall_time / 1000 > fall_speed and not paused:
             fall_time = 0
             current_piece.y += 1
             if not (valid_space(current_piece, grid) and current_piece.y > 0):
@@ -668,11 +666,11 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
                         )
                 elif event.key == pygame.K_g and energy_level >= 8 and not bonus_active:
                     double_points, bonus_active, bonus_end_time = activate_bonus(shop_data)
-                    energy_level = 1 
-        if paused: 
+                    energy_level = 1
+        if paused:
             draw_text_middle("PAUSED", 60, (255, 255, 255), win)
             pygame.display.update()
-            continue 
+            continue
         # Place the current piece on the grid
         shape_pos = convert_shape_format(current_piece)
         for x, y in shape_pos:
@@ -689,13 +687,13 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
 
             # Clear rows after placing the piece
             rows_cleared = clear_rows(grid, locked_positions)
-            
+           
             if rows_cleared > 0:
                 points_to_add = rows_cleared * (100 if rows_cleared == 4 else 10)
                 if double_points:
                     points_to_add *= (2 + shop_data["bonus_multiplier"])
                     print("El multiplicador es de:", points_to_add)
-                score += points_to_add 
+                score += points_to_add
                 player_points += points_to_add
                 print(f"Score actual: {score}, Total acumulado: {player_points}")
                 (Bonus_sfx if rows_cleared == 4 else claerrow_sfx).play()
@@ -712,7 +710,7 @@ def debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece
             bonus_active, bonus_end_time = handle_bonus(bonus_active, bonus_end_time)
             draw_text_middle("BONUS TIME!", 40, (255, 255, 255), win)
             if not bonus_active:
-                double_points = False  
+                double_points = False
 
         # Mirar si has perdido
         if check_lost(locked_positions):
@@ -1115,7 +1113,7 @@ def main_menu(player_points, shop_data, unlocked_scenarios, adjusted_piece_proba
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
                     Button_sfx.play()
                     pygame.mixer.music.stop()
-                    player_points, shop_data, unlocked_scenarios, current_scenario = debug_main(win, player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario)
+                    player_points, shop_data, unlocked_scenarios, current_scenario = main_loop(win, player_points, shop_data, unlocked_scenarios, adjusted_piece_probabilities, current_scenario)
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
                     save_game(player_points, shop_data, unlocked_scenarios)
                     pygame.mixer.music.stop()
